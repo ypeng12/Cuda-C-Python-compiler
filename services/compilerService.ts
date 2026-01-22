@@ -10,41 +10,62 @@ export class CompilerService {
   }
 
   async compileAndRun(code: string, language: Language): Promise<CompilationResult> {
-    const systemInstruction = `You are a High-Performance Computing (HPC) Compiler and Hardware Simulator. 
-    Your task is to analyze the provided ${language.toUpperCase()} code and simulate its execution.
-    
-    1. Check for syntax errors. If found, return status: "error".
-    2. If the code is valid, simulate the logic.
-    3. For CUDA: Describe kernel launch, grid/block dimensions, and memory transfers.
-    4. For Python: Describe the interpreted execution path and any library overhead.
-    5. IMPORTANT: Your "analysis" MUST be written in Chinese (简体中文).
+    const systemInstruction = `You are an NVIDIA HPC Performance Engineer.
+    Analyze the provided ${language.toUpperCase()} code and simulate its performance on an NVIDIA A100 (80GB).
+
+    1. EXECUTION: Simulate the code logic. If there are syntax errors, return "error" status.
+    2. LEADERBOARD: Create a REALISTIC performance comparison (in ms). 
+       Include the current code as "CURRENT KERNEL".
+       Compare it against: "Python Baseline", "Vectorized (CPU)", and "Optimized CUDA".
+    3. ANALYSIS: Provide "System Insights" in professional Chinese (简体中文). 
+       CRITICAL: DO NOT use LaTeX symbols like $, \times, or \approx. 
+       Use plain text for dimensions, e.g., use "17x17" instead of "$17 \times 17$".
+       Focus on: Memory Bandwidth, Compute Intensity, and Occupancy.
+       Format with clear headers and bullet points.
+    4. METRICS: Estimate TFLOPS, GPU Utilization, and Latency. 
+       Keep speedup factors realistic (e.g., 10x to 150x, not 1500x).
 
     Return a structured JSON response.`;
 
     try {
       const response = await this.ai.models.generateContent({
         model: 'gemini-3-pro-preview',
-        contents: `Compile and simulate this ${language} code execution:\n\n${code}`,
+        contents: `Project Analysis:\nLanguage: ${language}\nSource Code:\n${code}`,
         config: {
           systemInstruction,
-          thinkingConfig: { thinkingBudget: 32768 },
+          thinkingConfig: { thinkingBudget: 24576 },
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
               status: { type: Type.STRING, enum: ['success', 'error'] },
-              output: { type: Type.STRING, description: 'Standard output of the program' },
-              analysis: { type: Type.STRING, description: 'Deep technical analysis in CHINESE' },
+              output: { type: Type.STRING },
+              analysis: { type: Type.STRING },
               performanceMetrics: {
                 type: Type.OBJECT,
                 properties: {
                   executionTime: { type: Type.STRING },
                   memoryUsage: { type: Type.STRING },
-                  gpuUtilization: { type: Type.STRING }
+                  gpuUtilization: { type: Type.STRING },
+                  tflops: { type: Type.STRING },
+                  speedup: { type: Type.STRING },
+                  batch: { type: Type.STRING },
+                  dim: { type: Type.STRING }
+                }
+              },
+              leaderboard: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    label: { type: Type.STRING },
+                    value: { type: Type.NUMBER },
+                    color: { type: Type.STRING }
+                  }
                 }
               }
             },
-            required: ['status', 'output', 'analysis']
+            required: ['status', 'output', 'analysis', 'leaderboard', 'performanceMetrics']
           }
         },
       });
@@ -54,7 +75,7 @@ export class CompilerService {
       console.error("Simulation failed:", error);
       return {
         status: 'error',
-        output: "模拟器内部错误：无法连接至执行引擎。请检查您的网络或代码复杂度。"
+        output: "仿真引擎响应失败。请检查代码是否有严重逻辑错误或尝试缩减代码规模。"
       };
     }
   }

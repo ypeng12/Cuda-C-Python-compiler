@@ -7,6 +7,14 @@ export interface CodeTemplate {
   language: Language;
   code: string;
   description: string;
+  isUserSaved?: boolean;
+  executionTime?: string;
+}
+
+export interface PerformanceComparison {
+  label: string;
+  value: number; // in ms
+  color: string;
 }
 
 export interface CompilationResult {
@@ -17,7 +25,12 @@ export interface CompilationResult {
     executionTime?: string;
     memoryUsage?: string;
     gpuUtilization?: string;
+    tflops?: string;
+    speedup?: string;
+    batch?: string;
+    dim?: string;
   };
+  leaderboard?: PerformanceComparison[];
 }
 
 export interface TerminalLine {
