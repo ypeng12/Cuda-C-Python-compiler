@@ -1,0 +1,5 @@
+{
+  "name": "Nvidia-X: CUDA & C++ Cloud Playground",
+  "description": "A high-performance C++ and CUDA development environment powered by Gemini 3 Pro with deep reasoning capabilities for simulating complex hardware execution.",
+  "requestFramePermissions": []
+}
