@@ -33,8 +33,7 @@ const App: React.FC = () => {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [isEmulating, setIsEmulating] = useState(false);
 
-  // Resizing state
-  const [consoleHeight, setConsoleHeight] = useState(224); // Default height (h-56 = 14rem = 224px)
+  const [consoleHeight, setConsoleHeight] = useState(240); 
   const [isResizing, setIsResizing] = useState(false);
   const consoleRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +50,6 @@ const App: React.FC = () => {
     localStorage.setItem('nv_drafts', JSON.stringify(drafts));
   }, [activeLang, drafts]);
 
-  // Handle resizing logic
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
@@ -65,12 +63,11 @@ const App: React.FC = () => {
     if (isResizing && consoleRef.current) {
       const container = consoleRef.current.parentElement;
       if (!container) return;
-      
       const containerRect = container.getBoundingClientRect();
-      const newHeight = containerRect.bottom - e.clientY - 20; // 20px padding adjustment
-      
-      // Clamp values
-      if (newHeight > 100 && newHeight < window.innerHeight * 0.8) {
+      const newHeight = containerRect.bottom - e.clientY - 10;
+      const minHeight = 80;
+      const maxHeight = window.innerHeight * 0.7;
+      if (newHeight > minHeight && newHeight < maxHeight) {
         setConsoleHeight(newHeight);
       }
     }
@@ -143,8 +140,8 @@ const App: React.FC = () => {
       setResult(res);
       if (res.status === 'success') {
         setTerminalLines([
-          { type: 'info', content: `[SYSTEM] Target: NVIDIA A100-SXM4-80GB` },
-          { type: 'info', content: `[MEM] Initializing context...` },
+          { type: 'info', content: `[SYSTEM] Target: NVIDIA A100 / Xeon Multi-Core SIMD` },
+          { type: 'info', content: `[MEM] Allocating buffer...` },
           { type: 'success', content: `[OK] Dispatched. Latency: ${res.performanceMetrics?.executionTime}` },
           { type: 'stdout', content: res.output }
         ]);
@@ -175,10 +172,10 @@ const App: React.FC = () => {
     const currentVal = parseTimeValue(result?.performanceMetrics?.executionTime) || 0;
 
     return [
-      { label: 'Python Baseline', value: 1850.50, color: '#ef4444' },
+      { label: 'Python Snapshot (Best)', value: getBestTime('python', 1850.50), color: '#ef4444' },
       { label: 'C++ Snapshot (Best)', value: getBestTime('cpp', 125.40), color: '#f59e0b' },
       { label: 'CUDA Snapshot (Best)', value: getBestTime('cuda', 8.20), color: '#10b981' },
-      { label: 'CURRENT KERNEL', value: currentVal, color: '#3b82f6' }
+      { label: 'CURRENT DISPATCH', value: currentVal, color: '#3b82f6' }
     ];
   }, [userTemplates, result]);
 
@@ -213,8 +210,8 @@ const App: React.FC = () => {
   return (
     <div className={`flex h-screen w-full bg-[#020305] text-zinc-300 font-sans overflow-hidden selection:bg-green-500/20 ${isResizing ? 'cursor-row-resize' : ''}`}>
       
-      {/* LEFT PANEL (320px) */}
-      <div className="w-[320px] border-r border-white/5 flex flex-col bg-[#050608] p-5 space-y-5 overflow-y-auto custom-scrollbar z-20">
+      {/* LEFT PANEL - 固定宽度，不收缩 */}
+      <div className="w-[320px] flex-shrink-0 border-r border-white/5 flex flex-col bg-[#050608] p-5 space-y-5 overflow-y-auto custom-scrollbar z-20">
         <div className="flex items-center gap-3 mb-2 px-1">
           <div className="w-9 h-9 bg-green-500 rounded-lg flex items-center justify-center">
             <Zap className="text-white" size={18} fill="currentColor" />
@@ -239,7 +236,7 @@ const App: React.FC = () => {
               return (
                 <div key={i} className="space-y-2.5">
                   <div className="flex justify-between text-[9px] font-black uppercase tracking-widest leading-none">
-                    <span className="text-zinc-500 truncate max-w-[160px]">{item.label}</span>
+                    <span className="text-zinc-500 truncate max-w-[150px]">{item.label}</span>
                     <span className="text-zinc-100 font-mono text-[10px]">{active ? `${val.toFixed(2)}MS` : '--'}</span>
                   </div>
                   <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden">
@@ -256,7 +253,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Realtime Stats */}
         <div className="grid grid-cols-1 gap-3">
           <div className="bg-[#030406] border border-white/5 p-5 rounded-xl flex flex-col group">
             <span className="text-[9px] text-zinc-600 uppercase font-black tracking-widest">E2E Latency</span>
@@ -284,9 +280,9 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* CENTER PANEL */}
-      <div className="flex-1 flex flex-col relative bg-[#020305]">
-        <div className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#050608] z-10">
+      {/* CENTER PANEL - min-w-0 确保不会撑开父容器 */}
+      <div className="flex-1 min-w-0 flex flex-col relative bg-[#020305]">
+        <div className="h-16 border-b border-white/5 flex-shrink-0 flex items-center justify-between px-8 bg-[#050608] z-10">
           <div className="flex gap-3">
             {['cuda', 'cpp', 'python'].map((l) => (
               <button key={l} onClick={() => setActiveLang(l as Language)}
@@ -302,8 +298,9 @@ const App: React.FC = () => {
             <button onClick={saveToTemplates} className="text-zinc-500 hover:text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2.5">
               <Save size={16} /> Save Snapshot
             </button>
+            {/* 固定宽度的按钮，防止 Dispatching 时拉伸布局 */}
             <button onClick={runCode} disabled={isCompiling}
-              className={`flex items-center gap-4 px-8 py-2.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-widest
+              className={`flex items-center justify-center gap-4 w-[180px] py-2.5 rounded-lg font-black text-[11px] transition-all uppercase tracking-widest
                 ${isCompiling ? 'bg-zinc-800 text-zinc-500 cursor-wait' : 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/20 active:scale-95'}`}
             >
               {isCompiling ? <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Play size={14} fill="white" />}
@@ -313,36 +310,34 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex-1 flex flex-col p-5 overflow-hidden">
-          <div className="flex-1 bg-black/40 border border-white/5 rounded-xl flex flex-col overflow-hidden shadow-2xl">
+          <div className="flex-1 bg-black/40 border border-white/5 rounded-xl flex flex-col overflow-hidden shadow-2xl min-h-0">
             <div className="px-5 py-3 bg-white/[0.02] border-b border-white/5 flex justify-between items-center">
               <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">{activeLang} Core Dispatch</span>
               <div className="flex items-center gap-4">
                 <Cpu size={12} className="text-zinc-800" />
-                <span className="text-[10px] font-mono text-green-500/50">NVIDIA_SXM4_A100_80GB</span>
+                <span className="text-[10px] font-mono text-green-500/50">NVIDIA_A100_SXM4_80GB</span>
               </div>
             </div>
             <textarea value={currentCode} onChange={(e) => updateDraft(e.target.value)}
               className="flex-1 p-8 font-mono text-[15px] bg-transparent text-zinc-300 outline-none resize-none custom-scrollbar leading-relaxed"
               spellCheck={false}
-              placeholder="// Write kernel code here..."
+              placeholder="// Write code here..."
             />
           </div>
 
           {/* Resize Handle */}
           <div 
             onMouseDown={startResizing}
-            className={`h-1.5 w-full cursor-row-resize flex items-center justify-center group transition-colors hover:bg-green-500/20 my-1 rounded-full ${isResizing ? 'bg-green-500/40' : 'bg-transparent'}`}
+            className={`h-2 w-full cursor-row-resize flex items-center justify-center group transition-colors hover:bg-green-500/20 my-1 rounded-full ${isResizing ? 'bg-green-500/40' : 'bg-transparent'}`}
           >
-            <div className="w-12 h-1 rounded-full bg-zinc-800 group-hover:bg-zinc-600 transition-colors flex items-center justify-center">
-               <div className="w-4 h-0.5 bg-zinc-500/50" />
-            </div>
+            <div className="w-12 h-1 rounded-full bg-zinc-800 group-hover:bg-zinc-600 transition-colors" />
           </div>
 
-          {/* Console Output */}
+          {/* Console Output - 固定高度状态 */}
           <div 
             ref={consoleRef}
             style={{ height: `${consoleHeight}px` }}
-            className="bg-[#08090b] rounded-xl border border-white/5 p-5 flex flex-col overflow-hidden shadow-inner transition-[height] duration-75 ease-out"
+            className="bg-[#08090b] flex-shrink-0 rounded-xl border border-white/5 p-5 flex flex-col overflow-hidden shadow-inner transition-[height] duration-75 ease-out"
           >
             <div className="flex items-center justify-between mb-4">
               <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
@@ -352,7 +347,7 @@ const App: React.FC = () => {
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/30 rounded-lg p-5">
               <pre className="text-[13px] font-mono text-green-500/80 leading-relaxed whitespace-pre">
-                {result?.output || (isCompiling ? "Requesting hardware allocation..." : "Terminal ready. Awaiting dispatch.")}
+                {result?.output || (isCompiling ? "Initializing virtualization environment..." : "Terminal ready. Awaiting command.")}
               </pre>
             </div>
           </div>
@@ -398,8 +393,8 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {/* RIGHT PANEL (320px) */}
-      <div className="w-[320px] border-l border-white/5 flex flex-col bg-[#050608] p-5 overflow-y-auto custom-scrollbar">
+      {/* RIGHT PANEL - 固定宽度，不收缩 */}
+      <div className="w-[320px] flex-shrink-0 border-l border-white/5 flex flex-col bg-[#050608] p-5 overflow-y-auto custom-scrollbar">
         <div className="aspect-square bg-black/40 rounded-xl border border-white/5 relative overflow-hidden flex items-center justify-center mb-8 shadow-inner">
            <div className="w-[85%] h-[85%] grid grid-cols-10 grid-rows-10 gap-1.5 p-1.5">
               {Array.from({length: 100}).map((_, i) => (
@@ -430,7 +425,6 @@ const App: React.FC = () => {
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-        @keyframes scan { 0% { top: -5%; opacity: 0; } 25% { opacity: 1; } 75% { opacity: 1; } 100% { top: 105%; opacity: 0; } }
       `}} />
     </div>
   );

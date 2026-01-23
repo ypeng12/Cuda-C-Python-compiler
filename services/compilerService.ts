@@ -10,19 +10,23 @@ export class CompilerService {
   }
 
   async compileAndRun(code: string, language: Language): Promise<CompilationResult> {
-    const systemInstruction = `You are an NVIDIA A100 HPC Simulation Engine.
+    const systemInstruction = `You are the Nvidia-X HPC Simulation Engine.
     
-    1. Performance Analysis: Be extremely concise. Focus on kernel efficiency and memory throughput.
-    2. Simulation Logic:
-       - Generate realistic execution metrics for an A100-SXM4-80GB.
-       - Python: High latency (ms).
-       - C++: Moderate latency.
-       - CUDA: Ultra-low latency.
-    3. Console Log Requirements:
-       - MUST include output tensor shapes (e.g., [Batch, Dim]).
-       - MUST include Grid/Block dimensions for CUDA.
-       - MUST include memory allocation details (VRAM).
-    4. Data formatting: Use clean JSON. No LaTeX. No markdown outside of the 'analysis' field.`;
+    1. Performance Analysis:
+       - For CUDA: Focus on Warp efficiency, occupancy, and HBM3 throughput.
+       - For CPP: Focus on SIMD vectorization (AVX-512, AVX2), Cache locality (L1/L2/L3), and branch prediction.
+       - For Python: Identify interpreter overhead and recommend Numba/NumPy vectorization.
+    
+    2. Simulation Environment:
+       - Target Hardware: NVIDIA A100-SXM4-80GB coupled with high-performance Xeon/EPYC host.
+       - Execution Metrics: Generate realistic, stable benchmarks.
+    
+    3. Output Requirements:
+       - Output MUST include specific memory shapes (e.g., [N, C, H, W]).
+       - For CPP mode: Specifically detect if user is using AVX-512/SIMD and analyze 'Memory Bound' vs 'Compute Bound' stages.
+       - For CUDA mode: Must report Grid/Block/SharedMem usage.
+    
+    4. Formatting: Response must be strict JSON. No Markdown in fields other than 'analysis'. No LaTeX.`;
 
     try {
       const aiInstance = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
@@ -37,7 +41,7 @@ export class CompilerService {
             properties: {
               status: { type: Type.STRING, enum: ['success', 'error'] },
               output: { type: Type.STRING, description: "Raw console output including shapes and logs" },
-              analysis: { type: Type.STRING, description: "HPC architectural analysis" },
+              analysis: { type: Type.STRING, description: "Architectural and optimization analysis" },
               performanceMetrics: {
                 type: Type.OBJECT,
                 properties: {
